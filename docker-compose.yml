@@ -1,0 +1,14 @@
+version: '3'
+services:
+    web:
+        build: ./app
+        environment:
+            - MONGO_URL=mongo://mongo_db:8081
+        ports:
+            - "8050:8050"
+        volumes:
+            - ./app:/app
+        depends_on:
+            - mongo_db
+    mongo_db:
+        image: mongo
