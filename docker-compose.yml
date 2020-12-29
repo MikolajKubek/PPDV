@@ -1,13 +1,21 @@
 version: '3'
 services:
     web:
-        build: ./app
+        container_name: "ppdv_dash"
+        build:
+            context: ./app
         environment:
             - MONGO_URL=mongo://mongo_db:8081
+            - ISOD_LOGIN=${ISOD_LOGIN}
+            - ISOD_PASSWORD=${ISOD_PASSWORD}
+            - AUTH_GROUP=${AUTH_GROUP}
+            - VPN_ADDRESS=${VPN_ADDRESS}
         ports:
             - "8050:8050"
         volumes:
             - ./app:/app
+        cap_add:
+            - NET_ADMIN
         depends_on:
             - mongo_db
     mongo_db:
