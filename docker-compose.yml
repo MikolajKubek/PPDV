@@ -20,14 +20,6 @@ services:
             - NET_ADMIN
         depends_on:
             - mongo_db
-            - server
-
-#    server:
-#        build: ./server_mock
-#        ports:
-#            - "3000:3000"
-#        volumes:
-#            - ./server_mock:/app
 
     mongo_db:
         image: mongo
