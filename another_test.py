@@ -24,7 +24,7 @@ sensors_data = [[{
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-image_path = "foot1.png"
+image_path = "/home/mikolaj/Desktop/foot1.png"
 app.layout = html.Div([
     html.H4(f'{" ".join(current_df.loc[0, ["firstname", "lastname", "birthdate"]].astype(str).to_list())}'),
     html.H5("Patient selection:"),
@@ -183,4 +183,6 @@ def on_click(*args):
     return 1
 
 
-app.run_server(host='0.0.0.0', port=8050, debug=True)
+app.run_server(debug=True)
+
+

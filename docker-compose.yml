@@ -5,7 +5,9 @@ services:
         build:
             context: ./app
         environment:
-            - MONGO_URL=mongo://mongo_db:8081
+            - MONGO_URL=mongodb://mongo_db:27017
+#            - DATA_SOURCE_URL=http://server:3000/tesla/
+            - DATA_SOURCE_URL=http://tesla.iem.pw.edu.pl:9080/v2/monitor/
             - ISOD_LOGIN=${ISOD_LOGIN}
             - ISOD_PASSWORD=${ISOD_PASSWORD}
             - AUTH_GROUP=${AUTH_GROUP}
@@ -18,5 +20,16 @@ services:
             - NET_ADMIN
         depends_on:
             - mongo_db
+            - server
+
+#    server:
+#        build: ./server_mock
+#        ports:
+#            - "3000:3000"
+#        volumes:
+#            - ./server_mock:/app
+
     mongo_db:
         image: mongo
+        ports:
+            - "27017:27017"

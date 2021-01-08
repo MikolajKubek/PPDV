@@ -17,5 +17,5 @@ fi
 echo "Starting containers"
 docker-compose up -d
 
-echo "Connecting to vpn"
-docker exec ppdv_dash bash ./vpn_connect.sh &
+#echo "Connecting to vpn"
+#docker exec ppdv_dash bash ./vpn_connect.sh &
