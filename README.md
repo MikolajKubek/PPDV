@@ -5,8 +5,6 @@
 3. open http://localhost:8050 
 
 ## Screenshots
-Inline-style: 
-![image1](./Screenshots/Screenshot from 2021-01-08 01-58-39.png)
+![image1](Screenshots/Screenshot from 2021-01-08 01-58-39.png)
 
-Inline-style: 
-![image1](./Screenshots/Screenshot from 2021-01-08 01-59-49.png)
+![image1](Screenshots/Screenshot from 2021-01-08 01-59-49.png)
