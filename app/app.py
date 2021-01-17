@@ -11,6 +11,7 @@ import atexit
 
 import pandas as pd
 import numpy as np
+from datetime import timedelta, datetime
 
 df = pd.read_csv('data.csv')
 
@@ -203,7 +204,7 @@ app.layout = html.Div([
 
     dcc.Interval(
         id='interval-component',
-        interval=2000,
+        interval=500,
         n_intervals=0
     ),
     dcc.Store(id='memory', data=create_data_dict())
@@ -222,16 +223,28 @@ def mean(iterable):
     return np.array(iterable).mean()
 
 
-def update_walk_visualisation(measurements_data, figure, foot="L", function=last):
+def get_first_most_recent_date_idex(dates, time_delta):
+    now = datetime.now()
+    for index in range(len(dates)):
+        if now - dates[index] <= time_delta:
+            return index
+
+    return 0
+
+
+def update_walk_visualisation(measurements_data, figure, foot="L", function=last, time_delta=None):
+    first_index = 0
+    if time_delta is not None:
+        first_index = get_first_most_recent_date_idex(measurements_data["measurement_date"], time_delta)
     sizes, values, anomalies = [], [], []
     for i in range(0, 3):
-        size = 50 * function(measurements_data[f"{foot}{i}_value"]) / 1024
+        size = 50 * function(measurements_data[f"{foot}{i}_value"][first_index:]) / 1024
         if size < 20:
             sizes.append(20)
         else:
             sizes.append(size)
-        values.append(function(measurements_data[f"{foot}{i}_value"]))
-        anomalies.append(function(measurements_data[f"{foot}{i}_anomaly"]))
+        values.append(function(measurements_data[f"{foot}{i}_value"][first_index:]))
+        anomalies.append(function(measurements_data[f"{foot}{i}_anomaly"][first_index:]))
     figure['data'][0]['marker']['size'] = sizes
     figure['data'][0]['text'] = values
     figure['data'][0]['marker_color'] = values
@@ -269,18 +282,19 @@ def update_sensor_series_figure(measurements_data, figure, foot="L"):
 def visualisation_update(n_intervals, slider_value, selected_metric, lf_figure, rf_figure, g1, g2, anomalies_data, data):
     measurements_data = read_trace(data["patient_id"])
 
+    time_delta = timedelta(minutes=slider_value)
     if selected_metric == "median":
-        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=median)
-        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=median)
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=median, time_delta=time_delta)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=median, time_delta=time_delta)
     elif selected_metric == "mean":
-        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=mean)
-        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=mean)
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=mean, time_delta=time_delta)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=mean, time_delta=time_delta)
     elif selected_metric == "min":
-        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=min)
-        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=min)
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=min, time_delta=time_delta)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=min, time_delta=time_delta)
     elif selected_metric == "max":
-        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=max)
-        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=max)
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=max, time_delta=time_delta)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=max, time_delta=time_delta)
     else:
         lf_figure = update_walk_visualisation(measurements_data, lf_figure)
         rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R")
@@ -307,7 +321,7 @@ def on_click(*args):
         if patient_id != current_patient_id:
             data = read_trace(patient_id, get_one_measurement)
 
-    return data, f'{data["firstname"]}, {data["lastname"]}, {data["birthdate"]}'
+    return (data, f'{data["firstname"]}, {data["lastname"]}, {data["birthdate"]}')
 
 
 @app.callback(Output(component_id='last_minutes', component_property='children'),
