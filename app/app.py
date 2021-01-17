@@ -2,9 +2,12 @@ import dash
 import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
+from threading import Thread
+from database_manager import data_gatherer, get_measurements
 from walk_visualisation import WalkVisualisation
 from sensor_series import SensorSeriesVisualisation
 from dash.dependencies import Input, Output, State
+import atexit
 
 import pandas as pd
 
@@ -23,6 +26,45 @@ sensors_data = [[{
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+
+def create_data_dict():
+    return {
+        "patient_id": 1,
+        "measurement_date": [],
+        "birthdate": 1970,
+        "disabled": False,
+        "firstname": "Lorem",
+        "id": 1,
+        "lastname": "Ipsum",
+        "trace_id": 1,
+        "trace_name": "Lorem",
+        "L0_value": [],
+        "L0_anomaly": [],
+        "L1_value": [],
+        "L1_anomaly": [],
+        "L2_value": [],
+        "L2_anomaly": [],
+        "R0_value": [],
+        "R0_anomaly": [],
+        "R1_value": [],
+        "R1_anomaly": [],
+        "R2_value": [],
+        "R2_anomaly": [],
+    }
+
+
+def read_trace(patient_id):
+    data = create_data_dict()
+    for i in get_measurements(patient_id):
+        for key, value in i.items():
+            if key in data:
+                if isinstance(data[key], list):
+                    data[key].extend(value)
+                else:
+                    data[key] = value[0]
+    return data
+
 
 image_path = "foot1.png"
 app.layout = html.Div([
@@ -147,40 +189,84 @@ app.layout = html.Div([
 
     dcc.Interval(
         id='interval-component',
-        interval=2000,
+        interval=500,
         n_intervals=0
     ),
-    dcc.Store(id='memory', data=1)
+    dcc.Store(id='memory', data=create_data_dict())
 ])
 
 
-@app.callback(Output(component_id='left_foot_walk_visualisation', component_property='figure'),
-              Input(component_id='interval-component', component_property='n_intervals'),
-              State(component_id='left_foot_walk_visualisation', component_property='figure'))
-def visualisation_update(n_intervals, figure):
-    # values = current_df.loc[0, ["L0_value", "L1_value", "L2_value"]]
-    # figure['data'][0]['marker']['size'] = values
-    # figure['data'][0]['text'] = values
-    # figure['data'][0]['customdata'] = [True, True, True]
+def update_walk_visualisation(measurements_data, figure, foot="L"):
+    sizes, values, anomalies = [], [], []
+    for i in range(0, 3):
+        size = 50 * measurements_data[f"{foot}{i}_value"][-1] / 1024
+        if size < 20:
+            sizes.append(20)
+        else:
+            sizes.append(size)
+        values.append(measurements_data[f"{foot}{i}_value"][-1])
+        anomalies.append(measurements_data[f"{foot}{i}_anomaly"][-1])
+    figure['data'][0]['marker']['size'] = sizes
+    figure['data'][0]['text'] = values
+    figure['data'][0]['customdata'] = anomalies
+
     return figure
+
+
+def update_sensor_series_figure(measurements_data, figure, foot="L"):
+    for i in range(0, 3):
+        trace_value_key = f"{foot}{i}_value"
+        figure["data"][i]["x"] = measurements_data["measurement_date"]
+        figure["data"][i]["y"] = measurements_data[trace_value_key]
+        figure["data"][i]["text"] = [f"Value: {value}<br>Anomaly: {anomaly}<br>Trace: { measurements_data['trace_name']}"
+                                     for value, anomaly in
+                                     zip(measurements_data[trace_value_key], measurements_data[f"{foot}{i}_anomaly"])]
+
+    return figure
+
+
+@app.callback(Output(component_id='left_foot_walk_visualisation', component_property='figure'),
+              Output(component_id='right_foot_walk_visualisation', component_property='figure'),
+              Output(component_id='g1', component_property='figure'),
+              Output(component_id='g2', component_property='figure'),
+              Input(component_id='interval-component', component_property='n_intervals'),
+              State(component_id='left_foot_walk_visualisation', component_property='figure'),
+              State(component_id='right_foot_walk_visualisation', component_property='figure'),
+              State(component_id='g1', component_property='figure'),
+              State(component_id='g2', component_property='figure'),
+              State(component_id='memory', component_property='data'))
+def visualisation_update(n_intervals, lf_figure, rf_figure, g1, g2, data):
+    measurements_data = read_trace(data["patient_id"])
+    return update_walk_visualisation(measurements_data, lf_figure), \
+        update_walk_visualisation(measurements_data, rf_figure, foot="R"), \
+        update_sensor_series_figure(measurements_data, g1), \
+        update_sensor_series_figure(measurements_data, g2, foot="R")
 
 
 @app.callback(Output(component_id='memory', component_property='data'),
               *[Input(component_id=f"button_{i}", component_property='n_clicks') for i in range(1, 7)],
               State(component_id='memory', component_property='data'))
 def on_click(*args):
-    if len(dash.callback_context.triggered):
-        return 1
-    current_patient_id = args[-1]
+    data = args[-1]
+    if not len(dash.callback_context.triggered):
+        return data
+    current_patient_id = data["patient_id"]
     prop_id = dash.callback_context.triggered.pop()['prop_id']
     if prop_id != '.':
         patient_id = int(prop_id.split('.')[0][-1])
         if patient_id != current_patient_id:
-            # global current_df
-            # current_df = df.loc[df['patient_id'] == patient_id]
-            return patient_id
+            data["patient_id"] = patient_id
 
-    return 1
+    return data
 
 
-app.run_server(host='0.0.0.0', port=8050, debug=True)
+if __name__ == "__main__":
+    thread = Thread(target=data_gatherer, args=(0.5,))
+    thread.start()
+
+    @atexit.register
+    def close_thread():
+        print("stopping database manager thread")
+        thread.join()
+
+    app.run_server(host='0.0.0.0', port=8050, debug=True)

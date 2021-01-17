@@ -12,7 +12,7 @@ data_source_url = os.environ['DATA_SOURCE_URL']
 db = client.test_database
 measurements = db.measurements
 anomalies = db.anomalies
-measurements.create_index("date", expireAfterSeconds=10 * 60)
+measurements.create_index("date", expireAfterSeconds=60)
 
 columns = ["patient_id", "measurement_date", "birthdate", "disabled", "firstname", "id",
            "lastname", "trace_id", "trace_name",  "L0_value", "L0_anomaly", "L1_value",
@@ -26,8 +26,11 @@ def get_anomalies():
     return anomalies.find()
 
 
-def get_measurements():
-    return measurements.find()
+def get_measurements(patient_id=None):
+    if patient_id is None:
+        return measurements.find()
+    else:
+        return measurements.find({"patient_id": patient_id})
 
 
 def fetch_server_data():
