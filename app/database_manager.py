@@ -13,7 +13,7 @@ db = client.test_database
 measurements = db.measurements
 anomalies = db.anomalies
 measurements.create_index("date", expireAfterSeconds=60)
-anomalies.create_index("date", expireAfterSeconds=5 * 60)
+anomalies.create_index("date", expireAfterSeconds=60)
 
 columns = ["patient_id", "measurement_date", "birthdate", "disabled", "firstname", "id",
            "lastname", "trace_id", "trace_name",  "L0_value", "L0_anomaly", "L1_value",
@@ -23,8 +23,8 @@ columns = ["patient_id", "measurement_date", "birthdate", "disabled", "firstname
 anomaly_columns = ["L0_anomaly", "L1_anomaly", "L2_anomaly", "R0_anomaly", "R1_anomaly", "R2_anomaly"]
 
 
-def get_anomalies():
-    return anomalies.find()
+def get_anomalies(patient_id):
+    return anomalies.find({"patient_id": patient_id})
 
 
 def get_one_measurement(patient_id):
@@ -43,7 +43,7 @@ def fetch_server_data():
         json_data = requests.get(f"{data_source_url}{patient_id}").json()
         measurement_data = measurement_data_to_vector_dict(json_data, patient_id, datetime.now())
         measurement_data['date'] = datetime.utcnow()
-        if any([measurement_data[col] for col in anomaly_columns]):
+        if any([measurement_data[col][0] for col in anomaly_columns]):
             anomalies.insert_one(measurement_data)
         measurements.insert_one(measurement_data)
 

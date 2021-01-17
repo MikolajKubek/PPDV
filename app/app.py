@@ -3,13 +3,14 @@ import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
 from threading import Thread
-from database_manager import data_gatherer, get_measurements, get_one_measurement
+from database_manager import data_gatherer, get_measurements, get_one_measurement, get_anomalies
 from walk_visualisation import WalkVisualisation
 from sensor_series import SensorSeriesVisualisation
 from dash.dependencies import Input, Output, State
 import atexit
 
 import pandas as pd
+import numpy as np
 
 df = pd.read_csv('data.csv')
 
@@ -66,12 +67,51 @@ def read_trace(patient_id, query_function=get_measurements):
     return data
 
 
+def convert_anomalies_data(anomalies_data):
+    results_dicts = []
+    for data in anomalies_data:
+        results_dict = {}
+        for key, value in data.items():
+            if key in ["_id", "date"]:
+                continue
+            if isinstance(data[key], list):
+                results_dict[key] = value.pop()
+            else:
+                results_dict[key] = value
+
+            if "anomaly" in key:
+                results_dict[key] = int(results_dict[key])
+
+        results_dicts.append(results_dict)
+    return results_dicts
+
+
 image_path = "foot1.png"
 app.layout = html.Div([
     html.H4(f'{" ".join(current_df.loc[0, ["firstname", "lastname", "birthdate"]].astype(str).to_list())}',
             id="patient_data"),
     html.H5("Patient selection:"),
     html.Div([html.Button(f"Patient: {i}", id=f"button_{i}") for i in range(1, 7)]),
+
+    html.H5("Statistical data:"),
+    html.Div([
+        dcc.Dropdown(options=[
+            {'label': 'Current value', 'value': 'current'},
+            {'label': 'Mean value', 'value': 'mean'},
+            {'label': 'Median', 'value': 'median'},
+            {'label': 'Minimum', 'value': 'min'},
+            {'label': 'Maximum', 'value': 'max'},
+        ], placeholder="Select metric", className="row", id="metric_select"),
+        html.H6("Last 5 minutes", id='last_minutes'),
+        dcc.Slider(
+            id='x_last_minutes',
+            min=0,
+            max=10,
+            step=0.5,
+            value=5,
+        ),
+    ], className="row"),
+
     html.H5("Left Foot:"),
     html.Div([
         html.Div([
@@ -95,34 +135,6 @@ app.layout = html.Div([
         ], className="nine columns"),
     ], className="row"),
 
-    html.H5("Statistical data:"),
-    html.Div([
-        dcc.Dropdown(options=[
-            {'label': 'Mean value', 'value': 'mean'},
-            {'label': 'Median', 'value': 'median'},
-            {'label': 'Minimum', 'value': 'min'},
-            {'label': 'Maximum', 'value': 'max'},
-        ], placeholder="Select metric", className="row"),
-        html.Div([], className="four columns"),
-        html.Div([
-            dcc.Graph(figure=WalkVisualisation(image_path, xs=[2.45, 1.45, 2.1], ys=[6.3, 5.4, 0.75]),
-                      id='left_foot_metrics')
-        ], className="three columns"),
-        html.Div([
-            dcc.Graph(figure=WalkVisualisation(image_path.replace("1", "2"), xs=[1.55, 2.57, 1.9], ys=[6.3, 5.4, 0.75]),
-                      id='right_foot_metrics')
-        ], className="three columns"),
-    ], className="row"),
-
-    html.H6("Last 5 minutes", id='last_minutes'),
-    dcc.Slider(
-        id='x_last_minutes',
-        min=0,
-        max=10,
-        step=0.5,
-        value=5,
-    ),
-
     html.H5("Saved anomalies:"),
     html.Div(dash_table.DataTable(
         id="anomalies",
@@ -135,6 +147,7 @@ app.layout = html.Div([
             (current_df[anomaly_cols[4]] == 1) |
             (current_df[anomaly_cols[5]] == 1)
         ].to_dict('records'),
+        page_size=10,
         columns=[{'name': 'Date', 'id': 'measurement_date', 'type': 'datetime'},
                  {'name': 'Sensor L0', 'id': 'L0_value'},
                  {'name': 'Sensor L1', 'id': 'L1_value'},
@@ -190,25 +203,38 @@ app.layout = html.Div([
 
     dcc.Interval(
         id='interval-component',
-        interval=500,
+        interval=2000,
         n_intervals=0
     ),
     dcc.Store(id='memory', data=create_data_dict())
 ])
 
 
-def update_walk_visualisation(measurements_data, figure, foot="L"):
+def last(iterable):
+    return iterable[-1]
+
+
+def median(iterable):
+    return np.median(np.array(iterable))
+
+
+def mean(iterable):
+    return np.array(iterable).mean()
+
+
+def update_walk_visualisation(measurements_data, figure, foot="L", function=last):
     sizes, values, anomalies = [], [], []
     for i in range(0, 3):
-        size = 50 * measurements_data[f"{foot}{i}_value"][-1] / 1024
+        size = 50 * function(measurements_data[f"{foot}{i}_value"]) / 1024
         if size < 20:
             sizes.append(20)
         else:
             sizes.append(size)
-        values.append(measurements_data[f"{foot}{i}_value"][-1])
-        anomalies.append(measurements_data[f"{foot}{i}_anomaly"][-1])
+        values.append(function(measurements_data[f"{foot}{i}_value"]))
+        anomalies.append(function(measurements_data[f"{foot}{i}_anomaly"]))
     figure['data'][0]['marker']['size'] = sizes
     figure['data'][0]['text'] = values
+    figure['data'][0]['marker_color'] = values
     figure['data'][0]['customdata'] = anomalies
 
     return figure
@@ -226,22 +252,44 @@ def update_sensor_series_figure(measurements_data, figure, foot="L"):
     return figure
 
 
-@app.callback(Output(component_id='left_foot_walk_visualisation', component_property='figure'),
+@app.callback(Output(component_id='anomalies', component_property='data'),
+              Output(component_id='left_foot_walk_visualisation', component_property='figure'),
               Output(component_id='right_foot_walk_visualisation', component_property='figure'),
               Output(component_id='g1', component_property='figure'),
               Output(component_id='g2', component_property='figure'),
               Input(component_id='interval-component', component_property='n_intervals'),
+              State(component_id='x_last_minutes', component_property='value'),
+              State(component_id='metric_select', component_property='value'),
               State(component_id='left_foot_walk_visualisation', component_property='figure'),
               State(component_id='right_foot_walk_visualisation', component_property='figure'),
               State(component_id='g1', component_property='figure'),
               State(component_id='g2', component_property='figure'),
+              State(component_id='anomalies', component_property='data'),
               State(component_id='memory', component_property='data'))
-def visualisation_update(n_intervals, lf_figure, rf_figure, g1, g2, data):
+def visualisation_update(n_intervals, slider_value, selected_metric, lf_figure, rf_figure, g1, g2, anomalies_data, data):
     measurements_data = read_trace(data["patient_id"])
-    return update_walk_visualisation(measurements_data, lf_figure), \
-        update_walk_visualisation(measurements_data, rf_figure, foot="R"), \
+
+    if selected_metric == "median":
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=median)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=median)
+    elif selected_metric == "mean":
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=mean)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=mean)
+    elif selected_metric == "min":
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=min)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=min)
+    elif selected_metric == "max":
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure, function=max)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R", function=max)
+    else:
+        lf_figure = update_walk_visualisation(measurements_data, lf_figure)
+        rf_figure = update_walk_visualisation(measurements_data, rf_figure, foot="R")
+
+    anomalies_data = convert_anomalies_data(get_anomalies(data["patient_id"]))
+
+    return anomalies_data, lf_figure, rf_figure, \
         update_sensor_series_figure(measurements_data, g1), \
-        update_sensor_series_figure(measurements_data, g2, foot="R")
+        update_sensor_series_figure(measurements_data, g2, foot="R"),
 
 
 @app.callback(Output(component_id='memory', component_property='data'),
@@ -260,6 +308,12 @@ def on_click(*args):
             data = read_trace(patient_id, get_one_measurement)
 
     return data, f'{data["firstname"]}, {data["lastname"]}, {data["birthdate"]}'
+
+
+@app.callback(Output(component_id='last_minutes', component_property='children'),
+              Input(component_id='x_last_minutes', component_property="value"))
+def update_slider(slider_value):
+    return f"Last {slider_value} minutes"
 
 
 if __name__ == "__main__":

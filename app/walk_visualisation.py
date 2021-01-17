@@ -37,7 +37,6 @@ class WalkVisualisation(go.Figure):
         self.add_trace(go.Scatter(
             mode='markers+text',
             customdata=self.sensor_data['anomalies'],
-            marker_color='rgba(0, 124, 0, .8)',
             hovertemplate="Value: %{text}<br>Anomaly: %{customdata}<extra></extra>",
             marker=dict(colorscale='sunset')
         ))
