@@ -13,6 +13,7 @@ db = client.test_database
 measurements = db.measurements
 anomalies = db.anomalies
 measurements.create_index("date", expireAfterSeconds=60)
+anomalies.create_index("date", expireAfterSeconds=5 * 60)
 
 columns = ["patient_id", "measurement_date", "birthdate", "disabled", "firstname", "id",
            "lastname", "trace_id", "trace_name",  "L0_value", "L0_anomaly", "L1_value",
@@ -24,6 +25,10 @@ anomaly_columns = ["L0_anomaly", "L1_anomaly", "L2_anomaly", "R0_anomaly", "R1_a
 
 def get_anomalies():
     return anomalies.find()
+
+
+def get_one_measurement(patient_id):
+    return [measurements.find_one({"patient_id": patient_id})]
 
 
 def get_measurements(patient_id=None):

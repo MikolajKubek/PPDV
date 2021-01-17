@@ -3,7 +3,7 @@ import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
 from threading import Thread
-from database_manager import data_gatherer, get_measurements
+from database_manager import data_gatherer, get_measurements, get_one_measurement
 from walk_visualisation import WalkVisualisation
 from sensor_series import SensorSeriesVisualisation
 from dash.dependencies import Input, Output, State
@@ -54,9 +54,9 @@ def create_data_dict():
     }
 
 
-def read_trace(patient_id):
+def read_trace(patient_id, query_function=get_measurements):
     data = create_data_dict()
-    for i in get_measurements(patient_id):
+    for i in query_function(patient_id):
         for key, value in i.items():
             if key in data:
                 if isinstance(data[key], list):
@@ -68,7 +68,8 @@ def read_trace(patient_id):
 
 image_path = "foot1.png"
 app.layout = html.Div([
-    html.H4(f'{" ".join(current_df.loc[0, ["firstname", "lastname", "birthdate"]].astype(str).to_list())}'),
+    html.H4(f'{" ".join(current_df.loc[0, ["firstname", "lastname", "birthdate"]].astype(str).to_list())}',
+            id="patient_data"),
     html.H5("Patient selection:"),
     html.Div([html.Button(f"Patient: {i}", id=f"button_{i}") for i in range(1, 7)]),
     html.H5("Left Foot:"),
@@ -244,6 +245,7 @@ def visualisation_update(n_intervals, lf_figure, rf_figure, g1, g2, data):
 
 
 @app.callback(Output(component_id='memory', component_property='data'),
+              Output(component_id='patient_data', component_property='children'),
               *[Input(component_id=f"button_{i}", component_property='n_clicks') for i in range(1, 7)],
               State(component_id='memory', component_property='data'))
 def on_click(*args):
@@ -255,9 +257,9 @@ def on_click(*args):
     if prop_id != '.':
         patient_id = int(prop_id.split('.')[0][-1])
         if patient_id != current_patient_id:
-            data["patient_id"] = patient_id
+            data = read_trace(patient_id, get_one_measurement)
 
-    return data
+    return data, f'{data["firstname"]}, {data["lastname"]}, {data["birthdate"]}'
 
 
 if __name__ == "__main__":
