@@ -140,14 +140,6 @@ app.layout = html.Div([
     html.Div(dash_table.DataTable(
         id="anomalies",
         sort_action='native',
-        data=current_df[
-            (current_df[anomaly_cols[0]] == 1) |
-            (current_df[anomaly_cols[1]] == 1) |
-            (current_df[anomaly_cols[2]] == 1) |
-            (current_df[anomaly_cols[3]] == 1) |
-            (current_df[anomaly_cols[4]] == 1) |
-            (current_df[anomaly_cols[5]] == 1)
-        ].to_dict('records'),
         page_size=10,
         columns=[{'name': 'Date', 'id': 'measurement_date', 'type': 'datetime'},
                  {'name': 'Sensor L0', 'id': 'L0_value'},
@@ -331,12 +323,12 @@ def update_slider(slider_value):
 
 
 if __name__ == "__main__":
-    thread = Thread(target=data_gatherer, args=(0.5,))
-    thread.start()
-
-    @atexit.register
-    def close_thread():
-        print("stopping database manager thread")
-        thread.join()
+    # thread = Thread(target=data_gatherer, args=(0.5,))
+    # thread.start()
+    #
+    # @atexit.register
+    # def close_thread():
+    #     print("stopping database manager thread")
+    #     thread.join()
 
     app.run_server(host='0.0.0.0', port=8050, debug=True)
