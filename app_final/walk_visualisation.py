@@ -1,5 +1,7 @@
 import plotly.graph_objects as go
 import base64
+from datetime import datetime
+import numpy as np
 
 
 class WalkVisualisation(go.Figure):
@@ -57,3 +59,57 @@ class WalkVisualisation(go.Figure):
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
         return "data:image/png;base64," + encoded_string
+
+    @staticmethod
+    def last(iterable):
+        return iterable[-1]
+
+    @staticmethod
+    def median(iterable):
+        return np.median(np.array(iterable))
+
+    @staticmethod
+    def mean(iterable):
+        return np.array(iterable).mean()
+
+    @staticmethod
+    def get_first_most_recent_date_index(dates, time_delta):
+        now = datetime.now()
+        for index in range(len(dates)):
+            if now - dates[index] <= time_delta:
+                return index
+
+        return 0
+
+    @staticmethod
+    def update_figure_data(measurements_data, figure, foot="L", function=last, time_delta=None):
+        if function == "mean":
+            function = WalkVisualisation.mean
+        elif function == "median":
+            function = WalkVisualisation.median
+        elif function == "min":
+            function = min
+        elif function == "max":
+            function = max
+        else:
+            function = WalkVisualisation.last
+
+        first_index = 0
+        if time_delta is not None:
+            first_index = WalkVisualisation.get_first_most_recent_date_index(measurements_data["measurement_date"], time_delta)
+        sizes, values, anomalies = [], [], []
+        for i in range(0, 3):
+            size = 50 * function(measurements_data[f"{foot}{i}_value"][first_index:]) / 1024
+            if size < 20:
+                sizes.append(20)
+            else:
+                sizes.append(size)
+            values.append(function(measurements_data[f"{foot}{i}_value"][first_index:]))
+            anomalies.append(function(measurements_data[f"{foot}{i}_anomaly"][first_index:]))
+        figure['data'][0]['marker']['size'] = sizes
+        figure['data'][0]['text'] = values
+        figure['data'][0]['marker_color'] = values
+        figure['data'][0]['customdata'] = anomalies
+
+        return figure
+

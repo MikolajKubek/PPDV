@@ -34,13 +34,13 @@ def create_data_dict():
     return {
         "patient_id": 1,
         "measurement_date": [],
-        "birthdate": 1970,
+        "birthdate": 1,
         "disabled": False,
-        "firstname": "Lorem",
+        "firstname": "",
         "id": 1,
-        "lastname": "Ipsum",
+        "lastname": "",
         "trace_id": 1,
-        "trace_name": "Lorem",
+        "trace_name": "",
         "L0_value": [],
         "L0_anomaly": [],
         "L1_value": [],
@@ -215,7 +215,7 @@ def mean(iterable):
     return np.array(iterable).mean()
 
 
-def get_first_most_recent_date_idex(dates, time_delta):
+def get_first_most_recent_date_index(dates, time_delta):
     now = datetime.now()
     for index in range(len(dates)):
         if now - dates[index] <= time_delta:
@@ -227,7 +227,7 @@ def get_first_most_recent_date_idex(dates, time_delta):
 def update_walk_visualisation(measurements_data, figure, foot="L", function=last, time_delta=None):
     first_index = 0
     if time_delta is not None:
-        first_index = get_first_most_recent_date_idex(measurements_data["measurement_date"], time_delta)
+        first_index = get_first_most_recent_date_index(measurements_data["measurement_date"], time_delta)
     sizes, values, anomalies = [], [], []
     for i in range(0, 3):
         size = 50 * function(measurements_data[f"{foot}{i}_value"][first_index:]) / 1024

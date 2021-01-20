@@ -6,12 +6,12 @@ from app_final.sensor_series import SensorSeriesVisualisation
 
 
 def snake_case(string):
-    return string.lower().replace(" ", "_")
+    return string.strip().lower().replace(" ", "_")
 
 
 _foot_images = {"left": "foot1.png", "right": "foot2.png"}
 _sensor_traces = ["sensor_1", "sensor_2", "sensor_3"]
-_statistical_data = ["Current value", "Mean value", "Median", "Min", "Max"]
+_statistical_data = ["Current value", "Mean", "Median", "Min", "Max"]
 _left_foot_walk_visualisation_fig = WalkVisualisation(_foot_images["left"], xs=[2.45, 1.45, 2.1], ys=[6.3, 5.4, 0.75])
 _right_foot_walk_visualisation_fig = WalkVisualisation(_foot_images["right"], xs=[1.55, 2.57, 1.9], ys=[6.3, 5.4, 0.75])
 _left_foot_sensor_series_fig = SensorSeriesVisualisation(_sensor_traces, "Left foot:")
@@ -27,7 +27,7 @@ control_panel = html.Div([
     dcc.Dropdown(options=[{'label': label, "value": snake_case(label)} for label in _statistical_data],
                  placeholder=_statistical_data[0], id="metric_select"),
     html.H6("Last 5 minutes", id="last_minutes"),
-    dcc.Slider(id="x_last_minutes", min=0, max=10, step=0.5, value=5)
+    dcc.Slider(id="x_last_minutes", min=0.5, max=10, step=0.5, value=5)
 ])
 
 anomalies_table = html.Div([
