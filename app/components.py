@@ -1,8 +1,8 @@
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
-from app_final.walk_visualisation import WalkVisualisation
-from app_final.sensor_series import SensorSeriesVisualisation
+from walk_visualisation import WalkVisualisation
+from sensor_series import SensorSeriesVisualisation
 
 
 def snake_case(string):
@@ -10,7 +10,7 @@ def snake_case(string):
 
 
 _foot_images = {"left": "foot1.png", "right": "foot2.png"}
-_sensor_traces = ["sensor_1", "sensor_2", "sensor_3"]
+_sensor_traces = [("sensor_1", "rgb(200, 192, 138)"), ("sensor_2", "rgb(94, 88, 146)"), ("sensor_3", "rgb(195, 119, 124)")]
 _statistical_data = ["Current value", "Mean", "Median", "Min", "Max"]
 _left_foot_walk_visualisation_fig = WalkVisualisation(_foot_images["left"], xs=[2.45, 1.45, 2.1], ys=[6.3, 5.4, 0.75])
 _right_foot_walk_visualisation_fig = WalkVisualisation(_foot_images["right"], xs=[1.55, 2.57, 1.9], ys=[6.3, 5.4, 0.75])
