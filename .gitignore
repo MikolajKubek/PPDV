@@ -131,3 +131,4 @@ dmypy.json
 example_data/
 .idea/
 server_mock/
+app_old/
