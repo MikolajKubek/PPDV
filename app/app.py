@@ -47,6 +47,8 @@ def create_data_dict():
 def read_trace(patient_id, query_function=get_measurements):
     data = create_data_dict()
     for i in query_function(patient_id):
+        if i is None:
+            break
         for key, value in i.items():
             if key in data:
                 if isinstance(data[key], list):
